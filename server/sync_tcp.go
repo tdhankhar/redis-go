@@ -10,7 +10,7 @@ import (
 	"github.com/tdhankhar/redis-go/config"
 	"github.com/tdhankhar/redis-go/core"
 )
-func readCommand(clientConnection net.Conn) (*core.RedisCmd, error) {
+func readCommand(clientConnection io.ReadWriter) (*core.RedisCmd, error) {
 	buffer := make([]byte, 512)
 	bytes, err := clientConnection.Read(buffer)
 	if err != nil {
@@ -26,7 +26,7 @@ func readCommand(clientConnection net.Conn) (*core.RedisCmd, error) {
 	}, nil
 }
 
-func respond(clientConnection net.Conn, cmd *core.RedisCmd) {
+func respond(clientConnection io.ReadWriter, cmd *core.RedisCmd) {
 	err := core.EvalAndRespond(clientConnection, cmd)
 	if err != nil {
 		clientConnection.Write(core.Encode(err))
@@ -34,9 +34,9 @@ func respond(clientConnection net.Conn, cmd *core.RedisCmd) {
 }
 
 func RunSyncTcpServer() {
-	log.Println("starting sync TCP server on ", config.Host, config.Port)
+	log.Println("starting sync TCP server on", config.Host, config.Port)
 
-	concurrentClients := 0
+	clients := 0
 	listener, err := net.Listen("tcp", config.Host + ":" + strconv.Itoa(config.Port))
 	if err != nil {
 		panic(err)
@@ -48,24 +48,24 @@ func RunSyncTcpServer() {
 			panic(err)
 		}
 
-		concurrentClients += 1
+		clients += 1
 		log.Println("client connected with address", clientConnection.RemoteAddr())
-		log.Println("concurrent clients", concurrentClients)
+		log.Println("concurrent clients", clients)
 
 		for {
 			cmd, err := readCommand(clientConnection)
+
 			if err != nil {
 				clientConnection.Close()
-
-				concurrentClients -= 1
+				clients -= 1
 				log.Println("client disconnected", clientConnection.RemoteAddr())
-				log.Println("concurrent clients", concurrentClients)
-
-				if err == io.EOF {
-					break
+				log.Println("concurrent clients", clients)
+				if err != io.EOF {
+					log.Println("err", err)
 				}
-				log.Println("err", err)
+				break
 			}
+
 			respond(clientConnection, cmd)
 		}
 	}

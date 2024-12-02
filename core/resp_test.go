@@ -1,10 +1,8 @@
-package core_test
+package core
 
 import (
 	"fmt"
 	"testing"
-
-	"github.com/tdhankhar/redis-go/core"
 )
 
 func TestDecodeInt64(t *testing.T) {
@@ -13,7 +11,7 @@ func TestDecodeInt64(t *testing.T) {
 		":1000\r\n": 1000,
 	}
 	for k, v := range cases {
-		elem, _ := core.Decode([]byte(k))
+		elem, _ := decode([]byte(k))
 		if elem != v {
 			t.Fail()
 		}
@@ -25,7 +23,7 @@ func TestDecodeSimpleString(t *testing.T) {
 		"+PING\r\n": "PING",
 	}
 	for k, v := range cases {
-		elem, _ := core.Decode([]byte(k))
+		elem, _ := decode([]byte(k))
 		if elem != v {
 			t.Fail()
 		}
@@ -38,7 +36,7 @@ func TestDecodeBulkString(t *testing.T) {
 		"$0\r\n\r\n": "",
 	}
 	for k, v := range cases {
-		elem, _ := core.Decode([]byte(k))
+		elem, _ := decode([]byte(k))
 		if elem != v {
 			t.Fail()
 		}
@@ -52,7 +50,7 @@ func TestDecodeArray(t *testing.T) {
 		"*2\r\n*3\r\n:1\r\n:2\r\n:3\r\n*2\r\n+Hello\r\n-World\r\n": {[]interface{}{int64(1), int64(2), int64(3)}, []interface{}{"Hello", "World"}},
 	}
 	for k, v := range cases {
-		elem, _ := core.Decode([]byte(k))
+		elem, _ := decode([]byte(k))
 		elems := elem.([]interface{})
 		if len(elems) != len(v) {
 			t.Fail()
@@ -70,7 +68,7 @@ func TestDecodeError(t *testing.T) {
 		"-no data\r\n": "no data",
 	}
 	for k, v := range cases {
-		elem, _ := core.Decode([]byte(k))
+		elem, _ := decode([]byte(k))
 		if elem != v {
 			t.Fail()
 		}

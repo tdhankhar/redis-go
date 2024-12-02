@@ -29,7 +29,7 @@ func readArray(data []byte) ([]interface{}, int, error) {
 	length, i, _ := readInt64(data)
 	elems := make([]interface{}, length)
 	for j := 0; j < int(length); j++ {
-		elem, k, err := DecodeOne(data[i:])
+		elem, k, err := decodeOne(data[i:])
 		if err != nil {
 			return nil, 0, err
 		}
@@ -43,7 +43,7 @@ func readError(data []byte) (string, int, error) {
 	return readSimpleString(data)
 }
 
-func DecodeOne(data []byte) (interface{}, int, error) {
+func decodeOne(data []byte) (interface{}, int, error) {
 	if len(data) == 0 {
 		return nil, 0, errors.New("no data")
 	}
@@ -62,8 +62,16 @@ func DecodeOne(data []byte) (interface{}, int, error) {
 	return nil, 0, nil
 }
 
+func decode(data []byte) (interface{}, error) {
+	if len(data) == 0 {
+		return nil, errors.New("no data")
+	}
+	elem, _, err := decodeOne(data)
+	return elem, err
+}
+
 func DecodeArrayString(data []byte) ([]string, error) {
-	elem, err := Decode(data)
+	elem, err := decode(data)
 	if err != nil {
 		return nil, err
 	}
@@ -75,23 +83,17 @@ func DecodeArrayString(data []byte) ([]string, error) {
 	return tokens, nil
 }
 
-func Decode(data []byte) (interface{}, error) {
-	if len(data) == 0 {
-		return nil, errors.New("no data")
-	}
-	elem, _, err := DecodeOne(data)
-	return elem, err
-}
-
 func Encode(data interface{}) []byte {
 	switch value := data.(type) {
+	case int, int64:
+		return []byte(fmt.Sprintf(":%d\r\n", value))
 	case string:
 		return []byte(fmt.Sprintf("+%s\r\n", value))
-	case BulkString:
+	case bulkString:
 		return []byte(fmt.Sprintf("$%d\r\n%s\r\n", len(value), value))
 	case error:
 		return []byte(fmt.Sprintf("-%s\r\n", value))
 	default:
-		return []byte{}
+		return []byte("$-1\r\n")
 	}
 }

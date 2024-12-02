@@ -17,5 +17,5 @@ func setupFlags() {
 func main() {
 	setupFlags()
 	log.Println("redis-go server started")
-	server.RunSyncTcpServer()
+	server.RunAsyncTcpServer()
 }

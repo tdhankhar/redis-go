@@ -1,6 +1,6 @@
 package core
 
-type BulkString string
+type bulkString string
 
 type RedisCmd struct {
 	Cmd string
