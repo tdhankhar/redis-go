@@ -31,10 +31,6 @@ func evalGET(clientConnection io.ReadWriter, args []string) error {
 		clientConnection.Write(Encode(nil))
 		return nil
 	}
-	if obj.ExpiresAt != -1 && obj.ExpiresAt <= time.Now().UnixMilli() {
-		clientConnection.Write(Encode(nil))
-		return nil
-	}
 	clientConnection.Write(Encode(bulkString(obj.Value.(string))))
 	return nil
 }
@@ -85,7 +81,38 @@ func evalTTL(clientConnection io.ReadWriter, args []string) error {
 		clientConnection.Write(Encode(-2))
 		return nil
 	}
-	clientConnection.Write(Encode(int64(expiryMs / 1000)))
+	clientConnection.Write(Encode(expiryMs / 1000))
+	return nil
+}
+
+func evalDEL(clientConnection io.ReadWriter, args []string) error {
+	if len(args) == 0 {
+		return errors.New("invalid args")
+	}
+	deletedCount := 0
+	for _, key := range args {
+		deletedCount += del(key)
+	}
+	clientConnection.Write(Encode(deletedCount))
+	return nil
+}
+
+func evalEXPIRE(clientConnection io.ReadWriter, args []string) error {
+	if len(args) < 2 {
+		return errors.New("invalid args")
+	}
+	key := args[0]
+	expirySec, err := strconv.ParseInt(args[1], 10, 64)
+	if err != nil {
+		return errors.New("invalid args")
+	}
+	obj := get(key)
+	if obj == nil {
+		clientConnection.Write(Encode(0))
+		return nil
+	}
+	obj.ExpiresAt = time.Now().UnixMilli() + expirySec * 1000
+	clientConnection.Write(Encode(1))
 	return nil
 }
 
@@ -99,6 +126,10 @@ func EvalAndRespond(clientConnection io.ReadWriter, cmd *RedisCmd) error {
 		return evalSET(clientConnection, cmd.Args)
 	case "TTL":
 		return evalTTL(clientConnection, cmd.Args)
+	case "DEL":
+		return evalDEL(clientConnection, cmd.Args)
+	case "EXPIRE":
+		return evalEXPIRE(clientConnection, cmd.Args)
 	default:
 		return errors.New("invalid command")
 	}

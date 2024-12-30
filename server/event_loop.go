@@ -3,7 +3,12 @@ package server
 import (
 	"log"
 	"syscall"
+	"time"
+
+	"github.com/tdhankhar/redis-go/core"
 )
+
+const cronFrequency time.Duration = 1 * time.Second
 
 type eventLoop struct {
 	serverFd int
@@ -37,10 +42,16 @@ func initEventLoop(serverFd int) *eventLoop {
 
 func (e *eventLoop) Run() {
 	clients := 0
+	lastCronExecutedAt := time.Now()
 	events := make([]syscall.Kevent_t, maxClients)
 	defer syscall.Close(e.kqueueFd)
 
 	for {
+		if time.Now().After(lastCronExecutedAt.Add(cronFrequency)) {
+			core.DeleteExpiredKeys()
+			lastCronExecutedAt = time.Now()
+		}
+
 		nevents, err := syscall.Kevent(e.kqueueFd, nil, events, nil)
 		if err != nil {
 			continue
